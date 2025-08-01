@@ -7,14 +7,21 @@ function getFirebaseFunctions() {
 // Firebase가 로드될 때까지 대기하는 함수
 function waitForFirebase() {
     return new Promise((resolve) => {
-        const checkFirebase = () => {
-            if (window.db && window.collection && window.addDoc) {
-                resolve();
-            } else {
-                setTimeout(checkFirebase, 100);
-            }
-        };
-        checkFirebase();
+        // 이미 로드되어 있다면 즉시 resolve
+        if (window.db && window.collection && window.addDoc) {
+            resolve();
+            return;
+        }
+        
+        // Firebase 로딩 완료 이벤트 대기
+        window.addEventListener('firebaseReady', () => {
+            resolve();
+        }, { once: true });
+        
+        // 백업: 5초 후에도 로드되지 않으면 resolve (에러 방지)
+        setTimeout(() => {
+            resolve();
+        }, 5000);
     });
 }
 
