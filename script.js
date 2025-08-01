@@ -1,5 +1,5 @@
-// Firebase 함수들을 직접 import
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, orderBy, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// Firebase 함수들을 window 객체에서 가져오기
+const { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, orderBy, query, serverTimestamp } = window;
 
 // 데이터 저장소 (Firebase 사용)
 let questions = [];
@@ -46,6 +46,8 @@ questionsList.addEventListener('click', (e) => {
 
 // 페이지 로드 시 질문 목록 표시
 window.addEventListener('load', async () => {
+    // Firebase가 로드될 때까지 잠시 대기
+    await new Promise(resolve => setTimeout(resolve, 1000));
     await loadQuestions();
     displayQuestions();
 });
