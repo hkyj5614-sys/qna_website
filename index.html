@@ -111,17 +111,17 @@
             const db = firebase.firestore();
             console.log('Firestore 초기화 완료:', db);
 
-            // 전역 변수로 내보내기
+            // 전역 변수로 내보내기 - 올바른 함수 바인딩
             window.db = db;
-            window.collection = db.collection.bind(db);
-            window.addDoc = db.collection().add.bind(db.collection());
-            window.getDocs = db.collection().get.bind(db.collection());
-            window.doc = db.doc.bind(db);
-            window.updateDoc = db.collection().doc().update.bind(db.collection().doc());
-            window.deleteDoc = db.collection().doc().delete.bind(db.collection().doc());
-            window.orderBy = firebase.firestore.FieldPath;
-            window.query = db.collection().orderBy.bind(db.collection());
-            window.serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
+            window.collection = (path) => db.collection(path);
+            window.addDoc = (collectionRef, data) => collectionRef.add(data);
+            window.getDocs = (queryRef) => queryRef.get();
+            window.doc = (path, docId) => db.doc(`${path}/${docId}`);
+            window.updateDoc = (docRef, data) => docRef.update(data);
+            window.deleteDoc = (docRef) => docRef.delete();
+            window.orderBy = (field, direction = 'desc') => firebase.firestore.FieldPath.documentId();
+            window.query = (collectionRef, ...queryConstraints) => collectionRef.orderBy('timestamp', 'desc');
+            window.serverTimestamp = () => firebase.firestore.FieldValue.serverTimestamp();
 
             console.log('Firebase 함수들을 window 객체에 설정 완료');
             console.log('window.collection:', window.collection);

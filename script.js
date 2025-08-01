@@ -90,7 +90,7 @@ async function loadQuestions() {
     try {
         const { collection, getDocs, orderBy, query } = getFirebaseFunctions();
         const questionsRef = collection('questions');
-        const q = query(questionsRef, orderBy('timestamp', 'desc'));
+        const q = questionsRef.orderBy('timestamp', 'desc');
         const querySnapshot = await getDocs(q);
         
         questions = [];
