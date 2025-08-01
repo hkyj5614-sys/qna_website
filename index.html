@@ -85,7 +85,10 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <script>
         console.log('Firebase 모듈 로딩 시작...');
         
         // Firebase 설정
@@ -100,30 +103,25 @@
 
         console.log('Firebase 설정:', firebaseConfig);
 
-        // Firebase 초기화
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, orderBy, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        console.log('Firebase 모듈 import 완료');
-
         try {
-            const app = initializeApp(firebaseConfig);
-            console.log('Firebase 앱 초기화 완료:', app);
+            // Firebase 초기화 (compat 버전 사용)
+            firebase.initializeApp(firebaseConfig);
+            console.log('Firebase 앱 초기화 완료');
 
-            const db = getFirestore(app);
+            const db = firebase.firestore();
             console.log('Firestore 초기화 완료:', db);
 
             // 전역 변수로 내보내기
             window.db = db;
-            window.collection = collection;
-            window.addDoc = addDoc;
-            window.getDocs = getDocs;
-            window.doc = doc;
-            window.updateDoc = updateDoc;
-            window.deleteDoc = deleteDoc;
-            window.orderBy = orderBy;
-            window.query = query;
-            window.serverTimestamp = serverTimestamp;
+            window.collection = db.collection.bind(db);
+            window.addDoc = db.collection().add.bind(db.collection());
+            window.getDocs = db.collection().get.bind(db.collection());
+            window.doc = db.doc.bind(db);
+            window.updateDoc = db.collection().doc().update.bind(db.collection().doc());
+            window.deleteDoc = db.collection().doc().delete.bind(db.collection().doc());
+            window.orderBy = firebase.firestore.FieldPath;
+            window.query = db.collection().orderBy.bind(db.collection());
+            window.serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
 
             console.log('Firebase 함수들을 window 객체에 설정 완료');
             console.log('window.collection:', window.collection);

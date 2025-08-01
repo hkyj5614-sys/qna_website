@@ -1,7 +1,16 @@
 // Firebase 함수들을 window 객체에서 가져오기 - 로딩 대기 함수 추가
 function getFirebaseFunctions() {
-    const { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, orderBy, query, serverTimestamp } = window;
-    return { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, orderBy, query, serverTimestamp };
+    return {
+        collection: window.collection,
+        addDoc: window.addDoc,
+        getDocs: window.getDocs,
+        doc: window.doc,
+        updateDoc: window.updateDoc,
+        deleteDoc: window.deleteDoc,
+        orderBy: window.orderBy,
+        query: window.query,
+        serverTimestamp: window.serverTimestamp
+    };
 }
 
 // Firebase가 로드될 때까지 대기하는 함수
@@ -80,7 +89,7 @@ window.addEventListener('load', async () => {
 async function loadQuestions() {
     try {
         const { collection, getDocs, orderBy, query } = getFirebaseFunctions();
-        const questionsRef = collection(window.db, 'questions');
+        const questionsRef = collection('questions');
         const q = query(questionsRef, orderBy('timestamp', 'desc'));
         const querySnapshot = await getDocs(q);
         
@@ -118,7 +127,7 @@ async function handleQuestionSubmit(e) {
     try {
         // Firebase에 질문 추가
         const { collection, addDoc, serverTimestamp } = getFirebaseFunctions();
-        const questionsRef = collection(window.db, 'questions');
+        const questionsRef = collection('questions');
         const docRef = await addDoc(questionsRef, {
             title: title,
             content: content,
@@ -173,7 +182,7 @@ async function handleAnswerSubmit(e) {
         
         // Firebase 업데이트
         const { doc, updateDoc } = getFirebaseFunctions();
-        const questionRef = doc(window.db, 'questions', currentQuestionId);
+        const questionRef = doc('questions', currentQuestionId);
         await updateDoc(questionRef, {
             answers: question.answers
         });
