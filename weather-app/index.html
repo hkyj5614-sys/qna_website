@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오늘의 날씨</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-cloud-sun"></i> 오늘의 날씨</h1>
+        </header>
+        
+        <div class="search-section">
+            <div class="search-container">
+                <input type="text" id="location-input" placeholder="도시명을 입력하세요 (예: 서울, 부산, 제주)">
+                <button id="search-btn">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="weather-content" id="weather-content">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>날씨 정보를 불러오는 중...</p>
+            </div>
+        </div>
+
+        <div class="error-message" id="error-message" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>날씨 정보를 가져올 수 없습니다. 도시명을 확인해주세요.</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
