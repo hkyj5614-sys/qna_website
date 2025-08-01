@@ -1,27 +1,34 @@
 // Firebase가 로드될 때까지 대기하는 함수
 function waitForFirebase() {
     return new Promise((resolve) => {
+        // 이미 로드되어 있다면 즉시 resolve
         if (window.db && window.firebase) {
             resolve();
             return;
         }
         
+        // Firebase 로딩 완료 이벤트 대기
         window.addEventListener('firebaseReady', () => {
             resolve();
         }, { once: true });
         
+        // 백업: 5초 후에도 로드되지 않으면 resolve (에러 방지)
         setTimeout(() => {
             resolve();
         }, 5000);
     });
 }
 
-// 데이터 저장소
+// 데이터 저장소 (Firebase 사용)
 let questions = [];
+let currentQuestionId = null;
 
 // DOM 요소들
 const questionForm = document.getElementById('question-form');
 const questionsList = document.getElementById('questions-list');
+const questionModal = document.getElementById('question-modal');
+const closeModal = document.getElementById('close-modal');
+const answerForm = document.getElementById('answer-form');
 
 // HTML 이스케이프 함수
 function escapeHtml(text) {
@@ -33,11 +40,31 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// 질문 상세 보기 함수
+function openQuestionDetail(questionId) {
+    currentQuestionId = questionId;
+    displayQuestionDetail(questionId);
+    questionModal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
 // 이벤트 리스너 등록
 questionForm.addEventListener('submit', handleQuestionSubmit);
+closeModal.addEventListener('click', closeQuestionModal);
+answerForm.addEventListener('submit', handleAnswerSubmit);
+
+// 질문 목록 클릭 이벤트
+questionsList.addEventListener('click', (e) => {
+    const questionItem = e.target.closest('.question-item');
+    if (questionItem) {
+        const questionId = questionItem.dataset.questionId;
+        openQuestionDetail(questionId);
+    }
+});
 
 // 페이지 로드 시 질문 목록 표시
 window.addEventListener('load', async () => {
+    // Firebase가 로드될 때까지 대기
     await waitForFirebase();
     await loadQuestions();
     displayQuestions();
@@ -55,7 +82,8 @@ async function loadQuestions() {
             const data = doc.data();
             questions.push({
                 id: doc.id,
-                question: data.question || data.title || data.content,
+                title: data.title,
+                content: data.content,
                 date: data.timestamp ? data.timestamp.toDate().toLocaleString('ko-KR') : new Date().toLocaleString('ko-KR'),
                 answers: data.answers || []
             });
@@ -71,30 +99,90 @@ async function handleQuestionSubmit(e) {
     e.preventDefault();
     
     const formData = new FormData(questionForm);
-    const question = formData.get('question');
+    const title = formData.get('title');
+    const content = formData.get('content');
     
-    if (!question) {
-        showNotification('질문을 입력해주세요.', 'error');
+    // 데이터 검증
+    if (!title || !content) {
+        showNotification('제목과 내용을 입력해주세요.', 'error');
         return;
     }
     
     try {
+        // Firebase에 질문 추가
         const db = window.db;
         const questionsRef = db.collection('questions');
-        await questionsRef.add({
-            question: question,
+        const docRef = await questionsRef.add({
+            title: title,
+            content: content,
             timestamp: window.firebase.firestore.FieldValue.serverTimestamp(),
             answers: []
         });
         
+        // 성공 메시지 표시
         showNotification('질문이 성공적으로 등록되었습니다!', 'success');
+        
+        // 폼 초기화
         questionForm.reset();
+        
+        // 질문 목록 새로고침
         await loadQuestions();
         displayQuestions();
         
     } catch (error) {
         console.error('질문 등록 실패:', error);
         showNotification('질문 등록에 실패했습니다.', 'error');
+    }
+}
+
+// 답변 제출 처리
+async function handleAnswerSubmit(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(answerForm);
+    const content = formData.get('answer-content');
+    
+    if (!content) {
+        showNotification('답변 내용을 입력해주세요.', 'error');
+        return;
+    }
+    
+    try {
+        // 현재 질문 찾기
+        const question = questions.find(q => q.id === currentQuestionId);
+        if (!question) {
+            showNotification('질문을 찾을 수 없습니다.', 'error');
+            return;
+        }
+        
+        // 답변 추가
+        const newAnswer = {
+            id: Date.now().toString(),
+            content: content,
+            date: new Date().toLocaleString('ko-KR')
+        };
+        
+        question.answers.push(newAnswer);
+        
+        // Firebase 업데이트
+        const db = window.db;
+        const questionRef = db.collection('questions').doc(currentQuestionId);
+        await questionRef.update({
+            answers: question.answers
+        });
+        
+        // 성공 메시지 표시
+        showNotification('답변이 성공적으로 등록되었습니다!', 'success');
+        
+        // 폼 초기화
+        answerForm.reset();
+        
+        // 질문 상세 새로고침
+        displayQuestionDetail(currentQuestionId);
+        
+    } catch (error) {
+        console.error('답변 등록 실패:', error);
+        showNotification('답변 등록에 실패했습니다.', 'error');
     }
 }
 
@@ -112,41 +200,26 @@ function displayQuestions() {
     }
     
     questionsList.innerHTML = questions.map(question => {
-        const questionText = question.question || '';
-        const answers = question.answers || [];
+        const content = question.content || '';
+        const title = question.title || '';
         
         return `
             <div class="question-item" data-question-id="${question.id}">
-                <div class="question-content">${escapeHtml(questionText)}</div>
-                <div class="question-footer">
-                    <span class="question-date">${question.date}</span>
-                    <button class="reply-btn" onclick="toggleAnswerForm('${question.id}')">
-                        <i class="fas fa-reply"></i> 답변하기
-                    </button>
+                <div class="question-header">
+                    <div>
+                        <div class="question-title">${escapeHtml(title)}</div>
+                    </div>
                 </div>
-                
-                <div class="answers-section" id="answers-${question.id}" style="display: none;">
-                    <div class="answers-title">
-                        <i class="fas fa-comments"></i> 답변 (${answers.length}개)
-                    </div>
-                    <div class="answers-list">
-                        ${answers.length > 0 ? answers.map(answer => `
-                            <div class="answer-item">
-                                <div class="answer-content">${escapeHtml(answer.content)}</div>
-                                <div class="answer-date">${answer.date}</div>
-                            </div>
-                        `).join('') : '<p style="color: #666; text-align: center;">아직 답변이 없습니다.</p>'}
-                    </div>
-                    
-                    <div class="answer-form">
-                        <form onsubmit="handleAnswerSubmit(event, '${question.id}')">
-                            <div class="answer-input-group">
-                                <textarea id="answer-input-${question.id}" placeholder="답변을 작성해주세요" required></textarea>
-                                <button type="submit" class="answer-submit-btn">
-                                    <i class="fas fa-paper-plane"></i> 답변
-                                </button>
-                            </div>
-                        </form>
+                <div class="question-meta">
+                    <span><i class="fas fa-clock"></i> ${question.date || ''}</span>
+                </div>
+                <div class="question-content">
+                    ${escapeHtml(content.substring(0, 150))}${content.length > 150 ? '...' : ''}
+                </div>
+                <div class="question-footer">
+                    <div class="answer-count">
+                        <i class="fas fa-comments"></i>
+                        ${(question.answers || []).length}개의 답변
                     </div>
                 </div>
             </div>
@@ -154,67 +227,80 @@ function displayQuestions() {
     }).join('');
 }
 
-// 답변 폼 토글
-function toggleAnswerForm(questionId) {
-    const answersSection = document.getElementById(`answers-${questionId}`);
-    if (answersSection.style.display === 'none') {
-        answersSection.style.display = 'block';
-    } else {
-        answersSection.style.display = 'none';
-    }
+// 질문 상세 내용 표시
+function displayQuestionDetail(questionId) {
+    const question = questions.find(q => q.id === questionId);
+    if (!question) return;
+    
+    // 모달 제목 설정
+    document.getElementById('modal-title').textContent = question.title;
+    
+    // 질문 상세 내용
+    document.getElementById('question-detail').innerHTML = `
+        <div class="content">${escapeHtml(question.content)}</div>
+        <div class="meta">
+            <span><i class="fas fa-clock"></i> ${question.date}</span>
+        </div>
+    `;
+    
+    // 답변 목록 표시
+    displayAnswers(question.answers);
 }
 
-// 답변 제출 처리
-async function handleAnswerSubmit(e, questionId) {
-    e.preventDefault();
+// 답변 목록 표시
+function displayAnswers(answers) {
+    const answersList = document.getElementById('answers-list');
     
-    const answerInput = document.getElementById(`answer-input-${questionId}`);
-    const content = answerInput.value;
-    
-    if (!content) {
-        showNotification('답변 내용을 입력해주세요.', 'error');
+    if (!answers || answers.length === 0) {
+        answersList.innerHTML = `
+            <div class="empty-answers">
+                <i class="fas fa-comment-slash"></i>
+                <p>아직 답변이 없습니다. 첫 번째 답변을 작성해보세요!</p>
+            </div>
+        `;
         return;
     }
     
-    try {
-        const question = questions.find(q => q.id === questionId);
-        if (!question) {
-            showNotification('질문을 찾을 수 없습니다.', 'error');
-            return;
-        }
-        
-        const newAnswer = {
-            id: Date.now().toString(),
-            content: content,
-            date: new Date().toLocaleString('ko-KR')
-        };
-        
-        question.answers.push(newAnswer);
-        
-        const db = window.db;
-        const questionRef = db.collection('questions').doc(questionId);
-        await questionRef.update({
-            answers: question.answers
-        });
-        
-        showNotification('답변이 성공적으로 등록되었습니다!', 'success');
-        answerInput.value = '';
-        await loadQuestions();
-        displayQuestions();
-        
-    } catch (error) {
-        console.error('답변 등록 실패:', error);
-        showNotification('답변 등록에 실패했습니다.', 'error');
-    }
+    answersList.innerHTML = answers.map(answer => `
+        <div class="answer-item">
+            <div class="answer-header">
+                <span class="answer-date">${answer.date}</span>
+            </div>
+            <div class="answer-content">${escapeHtml(answer.content)}</div>
+        </div>
+    `).join('');
 }
+
+// 모달 닫기
+function closeQuestionModal() {
+    questionModal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+    currentQuestionId = null;
+}
+
+// 모달 외부 클릭 시 닫기
+window.addEventListener('click', (e) => {
+    if (e.target === questionModal) {
+        closeQuestionModal();
+    }
+});
+
+// ESC 키로 모달 닫기
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && questionModal.style.display === 'block') {
+        closeQuestionModal();
+    }
+});
 
 // 알림 표시 함수
 function showNotification(message, type = 'info') {
+    // 기존 알림 제거
     const existingNotification = document.querySelector('.notification');
     if (existingNotification) {
         existingNotification.remove();
     }
     
+    // 새 알림 생성
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.innerHTML = `
@@ -222,6 +308,7 @@ function showNotification(message, type = 'info') {
         <span>${message}</span>
     `;
     
+    // 스타일 적용
     notification.style.cssText = `
         position: fixed;
         top: 20px;
@@ -239,6 +326,7 @@ function showNotification(message, type = 'info') {
         animation: slideIn 0.3s ease;
     `;
     
+    // 애니메이션 스타일 추가
     const style = document.createElement('style');
     style.textContent = `
         @keyframes slideIn {
@@ -256,6 +344,7 @@ function showNotification(message, type = 'info') {
     
     document.body.appendChild(notification);
     
+    // 3초 후 자동 제거
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => {
@@ -265,3 +354,39 @@ function showNotification(message, type = 'info') {
         }, 300);
     }, 3000);
 }
+
+// 빈 상태 스타일 추가
+const emptyStateStyle = document.createElement('style');
+emptyStateStyle.textContent = `
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 20px;
+        display: block;
+    }
+    
+    .empty-state h3 {
+        margin-bottom: 10px;
+        color: #333;
+    }
+    
+    .empty-answers {
+        text-align: center;
+        padding: 40px 20px;
+        color: #666;
+    }
+    
+    .empty-answers i {
+        font-size: 3rem;
+        color: #ddd;
+        margin-bottom: 15px;
+        display: block;
+    }
+`;
+document.head.appendChild(emptyStateStyle); 

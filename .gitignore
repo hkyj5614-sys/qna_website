@@ -1,0 +1,28 @@
+# Firebase 설정 (보안상 제외)
+firebase-config.js
+
+# 환경 변수
+.env
+.env.local
+.env.production
+
+# 로그 파일
+*.log
+
+# 임시 파일
+*.tmp
+*.temp
+
+# IDE 설정
+.vscode/
+.idea/
+
+# OS 생성 파일
+.DS_Store
+Thumbs.db
+
+# Node.js (만약 나중에 사용한다면)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log* 
