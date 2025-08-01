@@ -1,3 +1,6 @@
+// Firebase 함수들을 직접 import
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, orderBy, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
 // 데이터 저장소 (Firebase 사용)
 let questions = [];
 let currentQuestionId = null;
@@ -50,7 +53,7 @@ window.addEventListener('load', async () => {
 // Firebase에서 질문 목록 불러오기
 async function loadQuestions() {
     try {
-        const questionsRef = collection(db, 'questions');
+        const questionsRef = collection(window.db, 'questions');
         const q = query(questionsRef, orderBy('timestamp', 'desc'));
         const querySnapshot = await getDocs(q);
         
@@ -87,7 +90,7 @@ async function handleQuestionSubmit(e) {
     
     try {
         // Firebase에 질문 추가
-        const questionsRef = collection(db, 'questions');
+        const questionsRef = collection(window.db, 'questions');
         const docRef = await addDoc(questionsRef, {
             title: title,
             content: content,
@@ -141,7 +144,7 @@ async function handleAnswerSubmit(e) {
         question.answers.push(newAnswer);
         
         // Firebase 업데이트
-        const questionRef = doc(db, 'questions', currentQuestionId);
+        const questionRef = doc(window.db, 'questions', currentQuestionId);
         await updateDoc(questionRef, {
             answers: question.answers
         });
