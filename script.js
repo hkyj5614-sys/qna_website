@@ -1,23 +1,8 @@
-// Firebase 함수들을 window 객체에서 가져오기 - 로딩 대기 함수 추가
-function getFirebaseFunctions() {
-    return {
-        collection: window.collection,
-        addDoc: window.addDoc,
-        getDocs: window.getDocs,
-        doc: window.doc,
-        updateDoc: window.updateDoc,
-        deleteDoc: window.deleteDoc,
-        orderBy: window.orderBy,
-        query: window.query,
-        serverTimestamp: window.serverTimestamp
-    };
-}
-
 // Firebase가 로드될 때까지 대기하는 함수
 function waitForFirebase() {
     return new Promise((resolve) => {
         // 이미 로드되어 있다면 즉시 resolve
-        if (window.db && window.collection && window.addDoc) {
+        if (window.db && window.firebase) {
             resolve();
             return;
         }
@@ -88,10 +73,9 @@ window.addEventListener('load', async () => {
 // Firebase에서 질문 목록 불러오기
 async function loadQuestions() {
     try {
-        const { collection, getDocs, orderBy, query } = getFirebaseFunctions();
-        const questionsRef = collection('questions');
-        const q = questionsRef.orderBy('timestamp', 'desc');
-        const querySnapshot = await getDocs(q);
+        const db = window.db;
+        const questionsRef = db.collection('questions');
+        const querySnapshot = await questionsRef.orderBy('timestamp', 'desc').get();
         
         questions = [];
         querySnapshot.forEach((doc) => {
@@ -126,12 +110,12 @@ async function handleQuestionSubmit(e) {
     
     try {
         // Firebase에 질문 추가
-        const { collection, addDoc, serverTimestamp } = getFirebaseFunctions();
-        const questionsRef = collection('questions');
-        const docRef = await addDoc(questionsRef, {
+        const db = window.db;
+        const questionsRef = db.collection('questions');
+        const docRef = await questionsRef.add({
             title: title,
             content: content,
-            timestamp: serverTimestamp(),
+            timestamp: window.firebase.firestore.FieldValue.serverTimestamp(),
             answers: []
         });
         
@@ -181,9 +165,9 @@ async function handleAnswerSubmit(e) {
         question.answers.push(newAnswer);
         
         // Firebase 업데이트
-        const { doc, updateDoc } = getFirebaseFunctions();
-        const questionRef = doc('questions', currentQuestionId);
-        await updateDoc(questionRef, {
+        const db = window.db;
+        const questionRef = db.collection('questions').doc(currentQuestionId);
+        await questionRef.update({
             answers: question.answers
         });
         
